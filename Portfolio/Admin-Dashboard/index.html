@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AD Admin Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{
+  --bg1:#081121;--bg2:#111c34;--bg3:#1c2d50;--text:#eef4ff;--muted:#c8d5f0;--line:rgba(255,255,255,.12);
+  --glass:rgba(255,255,255,.08);--glass-strong:rgba(255,255,255,.12);--blue:#4f8cff;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;--purple:#8b5cf6;
+}
+body.light{--bg1:#dbeafe;--bg2:#eef5ff;--bg3:#ffffff;--text:#0f172a;--muted:#475569;--line:rgba(15,23,42,.10);--glass:rgba(255,255,255,.72);--glass-strong:rgba(255,255,255,.92)}
+*{box-sizing:border-box;margin:0;padding:0;font-family:Inter,Arial,sans-serif}
+body{min-height:100vh;background:linear-gradient(135deg,var(--bg1),var(--bg2),var(--bg3));color:var(--text);overflow-x:hidden}
+button,input,select,textarea{font:inherit}
+.hidden{display:none!important}
+.bg-orb{position:fixed;border-radius:50%;filter:blur(100px);opacity:.35;z-index:0;animation:float 8s ease-in-out infinite}
+.orb1{width:240px;height:240px;background:#3b82f6;top:2%;left:3%}
+.orb2{width:280px;height:280px;background:#8b5cf6;bottom:8%;right:4%;animation-delay:-2s}
+.orb3{width:190px;height:190px;background:#06b6d4;top:40%;right:18%;animation-delay:-4s}
+.glass{background:var(--glass);backdrop-filter:blur(18px);border:1px solid var(--line);box-shadow:0 18px 45px rgba(0,0,0,.25);border-radius:26px}
+.auth-shell{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;z-index:1}
+.auth-card{width:min(460px,100%);padding:30px}
+.logo{font-size:30px;font-weight:900;letter-spacing:.3px;margin-bottom:8px}
+.sub{color:var(--muted);line-height:1.6;margin-bottom:18px}
+.input,.select,.textarea{width:100%;padding:13px 14px;border-radius:16px;border:1px solid var(--line);background:var(--glass-strong);color:var(--text);outline:none}
+.input::placeholder,.textarea::placeholder{color:var(--muted)}
+.textarea{min-height:88px;resize:vertical}
+.stack{display:grid;gap:12px}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.btn{border:none;border-radius:16px;padding:13px 16px;font-weight:800;cursor:pointer;color:#fff;background:linear-gradient(135deg,#2563eb,#4f46e5);box-shadow:0 10px 25px rgba(37,99,235,.28);transition:.22s}
+.btn:hover{transform:translateY(-2px)}
+.btn.secondary{background:#475569;box-shadow:none}
+.btn.green{background:#16a34a}.btn.red{background:#dc2626}.btn.amber{background:#d97706}.btn.purple{background:#7c3aed}.btn.teal{background:#0f766e}
+.btn.small{padding:8px 12px;border-radius:12px;font-size:13px}
+.dashboard{display:grid;grid-template-columns:290px 1fr;gap:18px;padding:18px;position:relative;z-index:1;min-height:100vh}
+.sidebar{padding:24px;display:flex;flex-direction:column;gap:16px}
+.brand{font-size:24px;font-weight:900;color:#9fc5ff}
+.side-note{color:var(--muted);font-size:14px;line-height:1.6}
+.nav button{width:100%;text-align:left;background:rgba(255,255,255,.05);border:1px solid transparent;color:var(--text);padding:14px 16px;border-radius:16px;cursor:pointer;font-weight:700;margin-bottom:10px;transition:.2s}
+.nav button:hover,.nav button.active{transform:translateX(5px);background:rgba(79,140,255,.22);border-color:var(--line)}
+.main{display:grid;gap:18px}
+.topbar{padding:22px;display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap}
+.topbar h1{font-size:32px}
+.badge{display:inline-flex;gap:10px;align-items:center;background:rgba(79,140,255,.18);padding:10px 14px;border-radius:999px;color:#cfe0ff;font-weight:700}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px}
+.card{padding:18px}
+.stat-title{color:var(--muted);font-size:14px;margin-bottom:10px}
+.stat-value{font-size:30px;font-weight:900}
+.sections{display:grid;gap:18px}
+.panel{padding:20px}
+.section-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.section-head h2{font-size:22px}
+.helper{color:var(--muted);font-size:13px;line-height:1.5}
+.filter-grid{display:grid;grid-template-columns:1.2fr repeat(6,.8fr);gap:12px;margin-bottom:16px}
+.form-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
+.toolbar{display:grid;grid-template-columns:1.2fr repeat(6,auto);gap:12px;margin-bottom:16px}
+.table-wrap{overflow:auto;border-radius:20px}
+table{width:100%;border-collapse:collapse;min-width:1350px}
+th,td{padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{color:#9fc5ff;font-size:14px}
+body.light th{color:#1d4ed8}
+.avatar{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;overflow:hidden;font-weight:900}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.status{padding:7px 11px;border-radius:999px;font-size:12px;font-weight:800;display:inline-flex}
+.s-active{background:rgba(34,197,94,.22)}.s-pending{background:rgba(245,158,11,.24)}.s-inactive{background:rgba(239,68,68,.24)}
+.grid-2{display:grid;grid-template-columns:1.05fr .95fr;gap:18px}
+.chart-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.chart-card{padding:18px;min-height:340px}
+.chart-wrap{position:relative;height:260px}
+.quick-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.quick-item{padding:14px;border-radius:18px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.mini-list{display:grid;gap:10px}
+.mini-item{padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.modal-cover{position:fixed;inset:0;background:rgba(2,6,23,.6);display:flex;justify-content:center;align-items:center;padding:20px;z-index:30}
+.modal{width:min(900px,100%);padding:22px;max-height:90vh;overflow:auto}
+.profile-head{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.profile-avatar{width:96px;height:96px;border-radius:26px;overflow:hidden;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:900}
+.profile-avatar img{width:100%;height:100%;object-fit:cover}
+.profile-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:16px 0}
+.profile-box{padding:14px;border-radius:18px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.profile-box h4{font-size:13px;color:var(--muted);margin-bottom:7px}
+.footer-note{color:var(--muted);font-size:13px;line-height:1.6}
+.empty{padding:18px;border:1px dashed var(--line);border-radius:18px;color:var(--muted)}
+.auth-switch{display:flex;gap:10px;margin:14px 0 18px}
+.student-portal{padding:18px;position:relative;z-index:1;min-height:100vh}
+.student-shell{max-width:1100px;margin:0 auto;display:grid;gap:18px}
+.student-actions{display:flex;gap:12px;flex-wrap:wrap}
+.student-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+
+@keyframes float{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-14px) scale(1.08)}}
+@media (max-width:1280px){.dashboard{grid-template-columns:1fr}.filter-grid,.form-grid,.toolbar,.chart-grid,.grid-2,.quick-grid,.profile-grid{grid-template-columns:1fr}.sidebar{order:2}.main{order:1}}
+
+.mobile-menu-btn{display:none}
+.sidebar-overlay{display:none}
+@media (max-width:1280px){
+  .mobile-menu-btn{display:inline-flex;align-items:center;justify-content:center}
+  .sidebar{position:fixed;left:0;top:0;bottom:0;width:min(320px,88vw);z-index:40;transform:translateX(-110%);transition:.25s;overflow:auto}
+  body.sidebar-open .sidebar{transform:translateX(0)}
+  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(2,6,23,.55);z-index:35}
+  body.sidebar-open .sidebar-overlay{display:block}
+  .dashboard{display:block;padding:18px}
+}
+
+@media print {.sidebar,.sidebar-overlay,.mobile-menu-btn,.topbar .row,.toolbar,.filter-grid,.form-grid,.nav,.bg-orb,#profileModal{display:none!important}.dashboard{display:block;padding:0}.panel,.card,.topbar{box-shadow:none;border:1px solid #ddd;background:#fff;color:#000}.main{display:block}.table-wrap table{min-width:unset}}
+</style>
+</head>
+<body>
+<div class="bg-orb orb1"></div><div class="bg-orb orb2"></div><div class="bg-orb orb3"></div>
+<div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<section id="authSection" class="auth-shell">
+  <div class="auth-card glass">
+    <div class="auth-switch">
+      <button id="adminTabBtn" class="btn" type="button" onclick="showAdminTab()">Admin</button>
+      <button id="studentTabBtn" class="btn secondary" type="button" onclick="showStudentTab()">Student</button>
+    </div>
+
+    <div id="adminTab">
+      <div id="loginBox">
+        <div class="logo">🎓 Admin Login Page</div>
+        <p class="sub">Login with your saved admin account to open the dashboard.</p>
+        <div class="stack">
+          <input class="input" id="loginEmail" type="email" placeholder="Admin email" />
+          <input class="input" id="loginPassword" type="password" placeholder="Admin password" />
+          <button class="btn" onclick="loginUser()">Login as Admin</button>
+          <button class="btn secondary" onclick="showSignup()">Create Admin Account</button>
+        </div>
+        <p class="sub" style="margin-top:14px">This project saves data in your browser localStorage, so your admin account and students stay available on the same computer.</p>
+      </div>
+
+      <div id="signupBox" class="hidden">
+        <div class="logo">✨ Admin Signup Page</div>
+        <p class="sub">Save one admin account to control the system.</p>
+        <div class="stack">
+          <input class="input" id="signupName" type="text" placeholder="Admin full name" />
+          <input class="input" id="signupEmail" type="email" placeholder="Admin email" />
+          <input class="input" id="signupPassword" type="password" placeholder="Admin password" />
+          <button class="btn" onclick="signupUser()">Save Admin Account</button>
+          <button class="btn secondary" onclick="showLogin()">Back to Login</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="studentTab" class="hidden">
+      <div class="logo">👨‍🎓 Student Login</div>
+      <p class="sub">Enter your student name and roll number to open your profile dashboard.</p>
+      <div class="stack">
+        <input class="input" id="studentLoginName" type="text" placeholder="Student name" />
+        <input class="input" id="studentLoginRoll" type="text" placeholder="Roll number" />
+        <button class="btn" onclick="loginStudent()">Login as Student</button>
+      </div>
+      <p class="sub" style="margin-top:14px">Example demo: Name <strong>Azhagudurai</strong> and Roll <strong>101</strong>.</p>
+    </div>
+  </div>
+</section>
+
+<section id="dashboardSection" class="dashboard hidden">
+  <aside class="sidebar glass">
+    <div>
+      <div class="brand">Menu</div>
+      <p class="side-note">Manage students, analytics, fees, import/export, and profile details from one premium dashboard.</p>
+    </div>
+    <div class="nav">
+      <button class="active">🏠 Dashboard</button>
+      <button onclick="scrollToSection('studentSection')">👨‍🎓 Students</button>
+      <button onclick="scrollToSection('analyticsSection')">📊 Analytics</button>
+      <button onclick="scrollToSection('financeSection')">💰 Fees</button>
+      <button onclick="scrollToSection('infoSection')">📦 Import / Export</button>
+      <button onclick="openStudentModal()">➕ Add Student</button>
+      <button onclick="toggleTheme()">🌙 / ☀ Theme</button>
+      <button onclick="logoutUser()">🚪 Logout</button>
+    </div>
+    <div class="mini-list">
+      <div class="mini-item">✅ Admin-only login</div>
+      <div class="mini-item">🖼 Student photo upload</div>
+      <div class="mini-item">📄 PDF export</div>
+      <div class="mini-item">📚 Result + attendance + fees</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar glass">
+      <div>
+        <div class="badge" id="welcomeText">Welcome back</div>
+        <h1>Student Management Dashboard</h1>
+        <div class="helper">Advanced dashboard with smart search, filter, charts, profiles, attendance, fees, and PDF/CSV export.</div>
+      </div>
+      <div class="row">
+        <button class="btn secondary mobile-menu-btn" onclick="toggleSidebar()">☰ Menu</button>
+        <button class="btn purple" onclick="openStudentModal()">Add Student</button>
+        <button class="btn teal" onclick="exportCurrentPdf()">Export PDF</button>
+        <button class="btn red" onclick="logoutUser()">Logout</button>
+      </div>
+    </div>
+
+    <section class="cards">
+      <div class="card glass"><div class="stat-title">Total Students</div><div class="stat-value" id="statTotal">0</div></div>
+      <div class="card glass"><div class="stat-title">Average Marks</div><div class="stat-value" id="statAvgMarks">0</div></div>
+      <div class="card glass"><div class="stat-title">Present Today</div><div class="stat-value" id="statAttendance">0%</div></div>
+      <div class="card glass"><div class="stat-title">Fees Collected</div><div class="stat-value" id="statFees">₹0</div></div>
+      <div class="card glass"><div class="stat-title">Pending Fees</div><div class="stat-value" id="statPendingFees">₹0</div></div>
+      <div class="card glass"><div class="stat-title">Pass Rate</div><div class="stat-value" id="statPassRate">0%</div></div>
+    </section>
+
+    <div class="sections">
+      <section id="analyticsSection" class="panel glass">
+        <div class="section-head">
+          <div>
+            <h2>Analytics Overview</h2>
+            <div class="helper">Live charts update automatically from the student list.</div>
+          </div>
+        </div>
+        <div class="chart-grid">
+          <div class="chart-card glass"><div class="section-head"><h3>Department Distribution</h3></div><div class="chart-wrap"><canvas id="deptChart"></canvas></div></div>
+          <div class="chart-card glass"><div class="section-head"><h3>Marks Performance</h3></div><div class="chart-wrap"><canvas id="marksChart"></canvas></div></div>
+          <div class="chart-card glass"><div class="section-head"><h3>Attendance Rate</h3></div><div class="chart-wrap"><canvas id="attendanceChart"></canvas></div></div>
+          <div class="chart-card glass"><div class="section-head"><h3>Fees Status</h3></div><div class="chart-wrap"><canvas id="feesChart"></canvas></div></div>
+        </div>
+      </section>
+
+      <section id="studentSection" class="panel glass">
+        <div class="section-head">
+          <div>
+            <h2>Student Records</h2>
+            <div class="helper">Search by name, roll, department, class, result, or fee status. Filter and sort instantly.</div>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <input class="input" id="excelFile" type="file" accept=".xlsx,.xls,.csv" onchange="importExcel()" />
+          <button class="btn small" onclick="downloadSample()">Sample CSV</button>
+          <button class="btn small green" onclick="exportAllCsv()">All CSV</button>
+          <button class="btn small teal" onclick="exportFilteredCsv()">Filtered CSV</button>
+          <button class="btn small purple" onclick="exportCurrentPdf()">PDF</button>
+          <button class="btn small amber" onclick="window.print()">Print</button>
+          <button class="btn small red" onclick="clearAllStudents()">Clear All</button>
+        </div>
+
+        <div class="form-grid">
+          <input class="input" id="studentName" placeholder="Student name" />
+          <input class="input" id="studentRoll" placeholder="Roll number" />
+          <input class="input" id="studentDepartment" placeholder="Department" />
+          <input class="input" id="studentClass" placeholder="Class / Year" />
+          <input class="input" id="studentMarks" type="number" placeholder="Marks" />
+          <button class="btn" onclick="saveStudentFromMain()">Save Student</button>
+        </div>
+
+        <div class="filter-grid">
+          <input class="input" id="searchInput" oninput="applyFilters()" placeholder="Search name / roll / department / class / result / fee status" />
+          <select class="select" id="departmentFilter" onchange="applyFilters()"><option value="">All Depts</option></select>
+          <select class="select" id="classFilter" onchange="applyFilters()"><option value="">All Classes</option></select>
+          <select class="select" id="resultFilter" onchange="applyFilters()"><option value="">All Results</option><option value="Pass">Pass</option><option value="Fail">Fail</option></select>
+          <select class="select" id="feeFilter" onchange="applyFilters()"><option value="">All Fees</option><option value="Paid">Paid</option><option value="Partial">Partial</option><option value="Unpaid">Unpaid</option></select>
+          <select class="select" id="attendanceFilter" onchange="applyFilters()"><option value="">Attendance</option><option value="Present">Present</option><option value="Absent">Absent</option></select>
+          <select class="select" id="sortFilter" onchange="applyFilters()"><option value="default">Sort</option><option value="nameAZ">Name A-Z</option><option value="marksHigh">Marks High-Low</option><option value="marksLow">Marks Low-High</option><option value="feesHigh">Fees High-Low</option></select>
+        </div>
+
+        <div class="helper" id="viewInfo" style="margin-bottom:12px">Showing 0 students</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Photo</th><th>Name</th><th>Roll</th><th>Department</th><th>Class</th><th>Marks</th><th>Result</th><th>Attendance</th><th>Fee Status</th><th>Paid / Total</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="studentTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="grid-2">
+        <section id="financeSection" class="panel glass">
+          <div class="section-head"><div><h2>Fee Summary</h2><div class="helper">Track paid, partial, and unpaid fees for each student.</div></div></div>
+          <div class="quick-grid">
+            <div class="quick-item"><div class="stat-title">Collected Amount</div><div class="stat-value" id="feesCollectedCard">₹0</div></div>
+            <div class="quick-item"><div class="stat-title">Remaining Amount</div><div class="stat-value" id="feesRemainingCard">₹0</div></div>
+            <div class="quick-item"><div class="stat-title">Students Fully Paid</div><div class="stat-value" id="feesPaidCount">0</div></div>
+            <div class="quick-item"><div class="stat-title">Students Need Follow-up</div><div class="stat-value" id="feesDueCount">0</div></div>
+          </div>
+        </section>
+
+        <section id="infoSection" class="panel glass">
+          <div class="section-head"><div><h2>System Info & Tips</h2><div class="helper">Easy setup instructions for your portfolio project.</div></div></div>
+          <div class="mini-list">
+            <div class="mini-item" id="loggedInfo">Logged in user: -</div>
+            <div class="mini-item" id="storageInfo">Saved students: 0</div>
+            <div class="mini-item">Excel columns supported: <strong>Name, Roll, Department, Class, Marks, Attendance, TotalFees, PaidFees, Phone, Email, Address, Notes</strong></div>
+            <div class="mini-item">Student photos are saved in browser storage as base64 images for demo use.</div>
+            <div class="mini-item">Use PDF export for portfolio screenshots and project demo sharing.</div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</section>
+
+<section id="studentPortalSection" class="student-portal hidden">
+  <div class="student-shell">
+    <div class="topbar glass">
+      <div>
+        <div class="badge" id="studentWelcomeText">Welcome student</div>
+        <h1>Student Dashboard</h1>
+        <div class="helper">View your marks, attendance, fees, and personal details.</div>
+      </div>
+      <div class="student-actions">
+        <button class="btn teal" onclick="printStudentCard()">Print</button>
+        <button class="btn red" onclick="logoutStudent()">Logout</button>
+      </div>
+    </div>
+
+    <div class="student-summary">
+      <div class="quick-item glass"><div class="stat-title">Marks</div><div class="stat-value" id="studentMarksCard">0</div></div>
+      <div class="quick-item glass"><div class="stat-title">Result</div><div class="stat-value" id="studentResultCard">-</div></div>
+      <div class="quick-item glass"><div class="stat-title">Attendance</div><div class="stat-value" id="studentAttendanceCard">-</div></div>
+      <div class="quick-item glass"><div class="stat-title">Fee Status</div><div class="stat-value" id="studentFeeCard">-</div></div>
+    </div>
+
+    <section class="panel glass">
+      <div class="section-head"><h2>My Profile</h2></div>
+      <div id="studentProfileContent"></div>
+    </section>
+  </div>
+</section>
+
+<div id="studentModal" class="modal-cover hidden">
+  <div class="modal glass">
+    <div class="section-head"><h2 id="modalTitle">Add Student</h2><button class="btn small secondary" onclick="closeStudentModal()">Close</button></div>
+    <div class="form-grid" style="grid-template-columns:repeat(3,1fr)">
+      <input class="input" id="modalName" placeholder="Student name" />
+      <input class="input" id="modalRoll" placeholder="Roll number" />
+      <input class="input" id="modalDepartment" placeholder="Department" />
+      <input class="input" id="modalClass" placeholder="Class / Year" />
+      <input class="input" id="modalMarks" type="number" placeholder="Marks" />
+      <select class="select" id="modalAttendance"><option>Present</option><option>Absent</option></select>
+      <input class="input" id="modalTotalFees" type="number" placeholder="Total fees" />
+      <input class="input" id="modalPaidFees" type="number" placeholder="Paid fees" />
+      <input class="input" id="modalPhone" placeholder="Phone" />
+      <input class="input" id="modalEmail" placeholder="Email" />
+      <input class="input" id="modalAddress" placeholder="Address" />
+      <input class="input" id="modalPhoto" type="file" accept="image/*" />
+    </div>
+    <textarea class="textarea" id="modalNotes" placeholder="Notes"></textarea>
+    <div class="row" style="margin-top:14px">
+      <button class="btn" onclick="saveStudentFromModal()">Save Student</button>
+      <button class="btn secondary" onclick="clearModalForm()">Clear</button>
+    </div>
+  </div>
+</div>
+
+<div id="profileModal" class="modal-cover hidden">
+  <div class="modal glass">
+    <div class="section-head"><h2>Student Profile</h2><button class="btn small secondary" onclick="closeProfileModal()">Close</button></div>
+    <div id="profileContent"></div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEYS={user:'ad_psms_user',logged:'ad_psms_logged',studentLogged:'ad_psms_student_logged',theme:'ad_psms_theme',students:'ad_psms_students'};
+let currentStudentIndex=-1;
+let students=JSON.parse(localStorage.getItem(STORAGE_KEYS.students)||'[]');
+let currentView=[...students];
+let editIndex=-1;
+let charts={dept:null,marks:null,attendance:null,fees:null};
+
+function getLoggedUser(){return JSON.parse(localStorage.getItem(STORAGE_KEYS.user)||'null');}
+function saveStudents(){localStorage.setItem(STORAGE_KEYS.students,JSON.stringify(students));document.getElementById('storageInfo').textContent='Saved students: '+students.length;}
+function showSignup(){loginBox.classList.add('hidden');signupBox.classList.remove('hidden');}
+function showLogin(){signupBox.classList.add('hidden');loginBox.classList.remove('hidden');}
+function setAuthTab(mode){
+  const isAdmin=mode==='admin';
+  adminTab.classList.toggle('hidden',!isAdmin);
+  studentTab.classList.toggle('hidden',isAdmin);
+  adminTabBtn.classList.toggle('secondary',!isAdmin);
+  studentTabBtn.classList.toggle('secondary',isAdmin);
+}
+function showAdminTab(){setAuthTab('admin');}
+function showStudentTab(){setAuthTab('student');}
+function signupUser(){
+  const name=signupName.value.trim(),email=signupEmail.value.trim().toLowerCase(),password=signupPassword.value.trim();
+  if(!name||!email||!password){alert('Please fill all admin fields');return;}
+  localStorage.setItem(STORAGE_KEYS.user,JSON.stringify({name,email,password,role:'Admin'}));
+  localStorage.setItem(STORAGE_KEYS.logged,'false');
+  alert('Admin account saved successfully. Now login.');
+  showLogin();loginEmail.value=email;loginPassword.value='';
+}
+function loginUser(){
+  const email=loginEmail.value.trim().toLowerCase(),password=loginPassword.value.trim();
+  const user=getLoggedUser();
+  if(!user){alert('No admin account found. Please create account first.');showSignup();return;}
+  if(user.email===email && user.password===password){localStorage.setItem(STORAGE_KEYS.logged,'true');openDashboard(user);} else alert('Wrong admin email or password');
+}
+function logoutUser(){localStorage.setItem(STORAGE_KEYS.logged,'false');closeSidebar();dashboardSection.classList.add('hidden');studentPortalSection.classList.add('hidden');authSection.classList.remove('hidden');showAdminTab();showLogin();}
+function toggleTheme(){document.body.classList.toggle('light');localStorage.setItem(STORAGE_KEYS.theme,document.body.classList.contains('light')?'light':'dark');}
+function toggleSidebar(){document.body.classList.toggle('sidebar-open');}
+function closeSidebar(){document.body.classList.remove('sidebar-open');}
+function openDashboard(user){
+  closeSidebar();
+  authSection.classList.add('hidden');dashboardSection.classList.remove('hidden');
+  welcomeText.textContent='Welcome, '+(user.name||'Admin')+' 👋';
+  loggedInfo.textContent='Logged in user: '+(user.name||'Admin')+' ('+user.email+')';
+  refreshFilters();applyFilters();
+}
+function scrollToSection(id){document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});}
+function escapeHtml(str){return String(str??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');}
+function initialFromName(name=''){return (name.trim()[0]||'?').toUpperCase();}
+function getResult(marks){return Number(marks)>=40?'Pass':'Fail';}
+function getAttendanceLabel(v){return String(v||'Present').toLowerCase()==='absent'?'Absent':'Present';}
+function getFeeStatus(total,paid){total=Number(total)||0;paid=Number(paid)||0;if(total===0||paid>=total)return 'Paid';if(paid>0)return 'Partial';return 'Unpaid';}
+function getAcademicStatus(marks){marks=Number(marks)||0;if(marks>=90)return {label:'Excellent',cls:'s-active'};if(marks>=60)return {label:'Good',cls:'s-pending'};return {label:'Needs Support',cls:'s-inactive'};}
+function formatMoney(n){return '₹'+(Number(n)||0).toLocaleString('en-IN');}
+function buildStudent(data={}){
+  const marks=Number(data.marks)||0,totalFees=Number(data.totalFees)||0,paidFees=Number(data.paidFees)||0;
+  return {
+    name:data.name?.trim()||'',roll:data.roll?.trim()||'',department:data.department?.trim()||'',studentClass:data.studentClass?.trim()||'',marks,
+    result:getResult(marks),attendance:getAttendanceLabel(data.attendance),totalFees,paidFees,feeStatus:getFeeStatus(totalFees,paidFees),
+    phone:data.phone?.trim()||'',email:data.email?.trim()||'',address:data.address?.trim()||'',notes:data.notes?.trim()||'',photo:data.photo||''
+  };
+}
+function clearMainForm(){['studentName','studentRoll','studentDepartment','studentClass','studentMarks'].forEach(id=>document.getElementById(id).value='');editIndex=-1;}
+function fillMainForm(s){studentName.value=s.name;studentRoll.value=s.roll;studentDepartment.value=s.department;studentClass.value=s.studentClass;studentMarks.value=s.marks;window.scrollTo({top:0,behavior:'smooth'});} 
+function saveStudentFromMain(){
+  const name=studentName.value.trim(),roll=studentRoll.value.trim(),department=studentDepartment.value.trim(),studentClass=studentClass.value.trim(),marks=studentMarks.value.trim();
+  if(!name||!roll||!department||!studentClass||marks===''){alert('Please fill main student form');return;}
+  const old=editIndex>=0?students[editIndex]:{};
+  const data=buildStudent({...old,name,roll,department,studentClass,marks});
+  if(editIndex>=0) students[editIndex]=data; else students.push(data);
+  clearMainForm();refreshFilters();applyFilters();
+}
+function openStudentModal(index=-1){
+  editIndex=index;
+  modalTitle.textContent=index>=0?'Edit Student':'Add Student';
+  if(index>=0 && students[index]){
+    const s=students[index];
+    modalName.value=s.name;modalRoll.value=s.roll;modalDepartment.value=s.department;modalClass.value=s.studentClass;modalMarks.value=s.marks;
+    modalAttendance.value=s.attendance;modalTotalFees.value=s.totalFees;modalPaidFees.value=s.paidFees;modalPhone.value=s.phone;modalEmail.value=s.email;modalAddress.value=s.address;modalNotes.value=s.notes;
+  }else clearModalForm();
+  studentModal.classList.remove('hidden');
+}
+function closeStudentModal(){studentModal.classList.add('hidden'); if(editIndex<0) clearModalForm();}
+function clearModalForm(){['modalName','modalRoll','modalDepartment','modalClass','modalMarks','modalTotalFees','modalPaidFees','modalPhone','modalEmail','modalAddress','modalNotes'].forEach(id=>document.getElementById(id).value='');modalAttendance.value='Present';modalPhoto.value='';editIndex=-1;}
+function fileToDataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});}
+async function saveStudentFromModal(){
+  const required=[modalName.value.trim(),modalRoll.value.trim(),modalDepartment.value.trim(),modalClass.value.trim(),modalMarks.value.trim()];
+  if(required.some(v=>!v&&v!==0)){alert('Please fill required student fields');return;}
+  let photo='';
+  if(editIndex>=0 && students[editIndex]) photo=students[editIndex].photo||'';
+  const file=modalPhoto.files[0];
+  if(file) photo=await fileToDataUrl(file);
+  const data=buildStudent({
+    ...(editIndex>=0?students[editIndex]:{}),name:modalName.value,roll:modalRoll.value,department:modalDepartment.value,studentClass:modalClass.value,
+    marks:modalMarks.value,attendance:modalAttendance.value,totalFees:modalTotalFees.value,paidFees:modalPaidFees.value,phone:modalPhone.value,email:modalEmail.value,address:modalAddress.value,notes:modalNotes.value,photo
+  });
+  if(editIndex>=0) students[editIndex]=data; else students.push(data);
+  closeStudentModal();clearModalForm();refreshFilters();applyFilters();
+}
+function refreshFilters(){
+  const depts=[...new Set(students.map(s=>s.department).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const classes=[...new Set(students.map(s=>s.studentClass).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const deptCurrent=departmentFilter.value,classCurrent=classFilter.value;
+  departmentFilter.innerHTML='<option value="">All Depts</option>'+depts.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+  classFilter.innerHTML='<option value="">All Classes</option>'+classes.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+  if(depts.includes(deptCurrent)) departmentFilter.value=deptCurrent;
+  if(classes.includes(classCurrent)) classFilter.value=classCurrent;
+}
+function applyFilters(){
+  const q=searchInput.value.trim().toLowerCase(),dept=departmentFilter.value,classVal=classFilter.value,result=resultFilter.value,fee=feeFilter.value,attendance=attendanceFilter.value,sort=sortFilter.value;
+  let filtered=students.map((s,index)=>({...s,__index:index})).filter(s=>{
+    const hay=[s.name,s.roll,s.department,s.studentClass,s.result,s.feeStatus,s.attendance,s.phone,s.email].join(' ').toLowerCase();
+    return (!q||hay.includes(q)) && (!dept||s.department===dept) && (!classVal||s.studentClass===classVal) && (!result||s.result===result) && (!fee||s.feeStatus===fee) && (!attendance||s.attendance===attendance);
+  });
+  if(sort==='nameAZ') filtered=[...filtered].sort((a,b)=>a.name.localeCompare(b.name));
+  if(sort==='marksHigh') filtered=[...filtered].sort((a,b)=>b.marks-a.marks);
+  if(sort==='marksLow') filtered=[...filtered].sort((a,b)=>a.marks-b.marks);
+  if(sort==='feesHigh') filtered=[...filtered].sort((a,b)=>b.paidFees-a.paidFees);
+  currentView=filtered;
+  renderTable();updateDashboard();
+}
+function renderTable(){
+  studentTable.innerHTML='';
+  if(!currentView.length){studentTable.innerHTML=`<tr><td colspan="11"><div class="empty">No students found for the current search and filters.</div></td></tr>`;viewInfo.textContent=`Showing 0 of ${students.length} students`;saveStudents();return;}
+  currentView.forEach((s,i)=>{
+    const sourceIndex=Number(s.__index ?? i);
+    const st=getAcademicStatus(s.marks);
+    const avatar=s.photo?`<div class="avatar"><img src="${s.photo}" alt="${escapeHtml(s.name)}"></div>`:`<div class="avatar">${initialFromName(s.name)}</div>`;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td>${avatar}</td>
+      <td>${escapeHtml(s.name)}</td>
+      <td>${escapeHtml(s.roll)}</td>
+      <td>${escapeHtml(s.department)}</td>
+      <td>${escapeHtml(s.studentClass)}</td>
+      <td>${escapeHtml(s.marks)}</td>
+      <td><span class="status ${st.cls}">${escapeHtml(s.result)}</span></td>
+      <td>${escapeHtml(s.attendance)}</td>
+      <td>${escapeHtml(s.feeStatus)}</td>
+      <td>${formatMoney(s.paidFees)} / ${formatMoney(s.totalFees)}</td>
+      <td>
+        <button class="btn small" onclick="viewProfile(${sourceIndex})">Profile</button>
+        <button class="btn small green" onclick="quickEdit(${sourceIndex})">Edit</button>
+        <button class="btn small red" onclick="deleteStudent(${sourceIndex})">Delete</button>
+      </td>`;
+    studentTable.appendChild(tr);
+  });
+  viewInfo.textContent=`Showing ${currentView.length} of ${students.length} students`;
+  saveStudents();
+}
+function quickEdit(i){if(i<0||!students[i])return;openStudentModal(i);}
+function deleteStudent(i){if(i<0||!students[i])return;if(confirm('Delete this student?')){students.splice(i,1);refreshFilters();applyFilters();}}
+function clearAllStudents(){if(!students.length){alert('No student data to clear');return;}if(confirm('Clear all student records?')){students=[];currentView=[];refreshFilters();applyFilters();}}
+function viewProfile(i){
+  const s=students[i]; if(!s) return;
+  const avatar=s.photo?`<div class="profile-avatar"><img src="${s.photo}" alt="${escapeHtml(s.name)}"></div>`:`<div class="profile-avatar">${initialFromName(s.name)}</div>`;
+  profileContent.innerHTML=`
+    <div class="profile-head">${avatar}<div><h2>${escapeHtml(s.name)}</h2><div class="helper">Roll: ${escapeHtml(s.roll)} • ${escapeHtml(s.department)} • ${escapeHtml(s.studentClass)}</div></div></div>
+    <div class="profile-grid">
+      <div class="profile-box"><h4>Marks</h4><div>${escapeHtml(s.marks)}</div></div>
+      <div class="profile-box"><h4>Result</h4><div>${escapeHtml(s.result)}</div></div>
+      <div class="profile-box"><h4>Attendance</h4><div>${escapeHtml(s.attendance)}</div></div>
+      <div class="profile-box"><h4>Fee Status</h4><div>${escapeHtml(s.feeStatus)}</div></div>
+      <div class="profile-box"><h4>Paid Fees</h4><div>${formatMoney(s.paidFees)}</div></div>
+      <div class="profile-box"><h4>Total Fees</h4><div>${formatMoney(s.totalFees)}</div></div>
+      <div class="profile-box"><h4>Phone</h4><div>${escapeHtml(s.phone||'-')}</div></div>
+      <div class="profile-box"><h4>Email</h4><div>${escapeHtml(s.email||'-')}</div></div>
+      <div class="profile-box"><h4>Address</h4><div>${escapeHtml(s.address||'-')}</div></div>
+    </div>
+    <div class="profile-box"><h4>Notes</h4><div>${escapeHtml(s.notes||'No notes')}</div></div>`;
+  profileModal.classList.remove('hidden');
+}
+function closeProfileModal(){profileModal.classList.add('hidden');}
+function normalizeRow(row){
+  return buildStudent({
+    name:row.Name||row.name||row['Student Name']||'', roll:row.Roll||row.roll||row['Roll No']||row['Roll Number']||'', department:row.Department||row.department||row.Dept||'',
+    studentClass:row.Class||row.class||row.Year||row['Class / Year']||'', marks:row.Marks||row.marks||row.Score||0,
+    attendance:row.Attendance||row.attendance||'Present', totalFees:row.TotalFees||row['Total Fees']||row.totalFees||0, paidFees:row.PaidFees||row['Paid Fees']||row.paidFees||0,
+    phone:row.Phone||row.phone||'', email:row.Email||row.email||'', address:row.Address||row.address||'', notes:row.Notes||row.notes||''
+  });
+}
+function importExcel(){
+  const file=excelFile.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const data=new Uint8Array(e.target.result); const workbook=XLSX.read(data,{type:'array'}); const sheet=workbook.Sheets[workbook.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(sheet); const imported=rows.map(normalizeRow).filter(r=>r.name&&r.roll);
+    if(!imported.length){alert('Columns not matched. Use Name, Roll, Department, Class, Marks.');return;}
+    students=[...students,...imported]; excelFile.value=''; refreshFilters(); applyFilters(); alert(imported.length+' students imported successfully');
+  };
+  reader.readAsArrayBuffer(file);
+}
+function csvEscape(v){return '"'+String(v??'').replaceAll('"','""')+'"';}
+function makeCsv(rows){
+  const head=['Name','Roll','Department','Class','Marks','Result','Attendance','TotalFees','PaidFees','FeeStatus','Phone','Email','Address','Notes'];
+  const body=rows.map(s=>[s.name,s.roll,s.department,s.studentClass,s.marks,s.result,s.attendance,s.totalFees,s.paidFees,s.feeStatus,s.phone,s.email,s.address,s.notes].map(csvEscape).join(','));
+  return [head.join(','),...body].join('\n');
+}
+function downloadBlob(content,filename,mime='text/csv;charset=utf-8;'){const blob=new Blob([content],{type:mime});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=filename;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(link.href),800);}
+function downloadSample(){const sample=[buildStudent({name:'Azhagudurai',roll:'101',department:'CSE',studentClass:'III Year',marks:92,attendance:'Present',totalFees:50000,paidFees:50000,phone:'9876543210',email:'student1@example.com',address:'Salem',notes:'Top performer'}),buildStudent({name:'Priya',roll:'102',department:'IT',studentClass:'II Year',marks:76,attendance:'Present',totalFees:45000,paidFees:20000,phone:'9876500000',email:'student2@example.com',address:'Chennai',notes:'Needs fee follow-up'}),buildStudent({name:'Kavin',roll:'103',department:'ECE',studentClass:'I Year',marks:35,attendance:'Absent',totalFees:47000,paidFees:0,phone:'9000000000',email:'student3@example.com',address:'Madurai',notes:'Support required'})];downloadBlob(makeCsv(sample),'student-sample.csv');}
+function exportAllCsv(){if(!students.length){alert('No student data available');return;}downloadBlob(makeCsv(students),'all-students.csv');}
+function exportFilteredCsv(){if(!currentView.length){alert('No filtered student data available');return;}downloadBlob(makeCsv(currentView),'filtered-students.csv');}
+function exportCurrentPdf(){
+  if(!currentView.length){alert('No student data to export');return;}
+  const jsPDF=window.jspdf?.jsPDF; if(!jsPDF){alert('PDF library not loaded. Please check internet connection for CDN scripts.');return;}
+  const doc=new jsPDF({orientation:'landscape'});
+  doc.setFontSize(18); doc.text('AD Premium Student Management Report',14,14);
+  doc.setFontSize(11); doc.text('Students: '+currentView.length+' | Generated: '+new Date().toLocaleString(),14,22);
+  const rows=currentView.map(s=>[s.name,s.roll,s.department,s.studentClass,s.marks,s.result,s.attendance,s.feeStatus,formatMoney(s.paidFees)+' / '+formatMoney(s.totalFees)]);
+  doc.autoTable({startY:28,head:[['Name','Roll','Dept','Class','Marks','Result','Attendance','Fee','Paid / Total']],body:rows,styles:{fontSize:9},headStyles:{fillColor:[37,99,235]}});
+  doc.save('student-report.pdf');
+}
+function updateDashboard(){
+  const list=students, total=list.length, avg=total?(list.reduce((a,b)=>a+(Number(b.marks)||0),0)/total).toFixed(1):0;
+  const present=list.filter(s=>s.attendance==='Present').length, attendanceRate=total?Math.round(present/total*100):0;
+  const paid=list.reduce((a,b)=>a+(Number(b.paidFees)||0),0), totalFees=list.reduce((a,b)=>a+(Number(b.totalFees)||0),0), remain=Math.max(totalFees-paid,0);
+  const pass=list.filter(s=>s.result==='Pass').length, passRate=total?Math.round(pass/total*100):0;
+  statTotal.textContent=total; statAvgMarks.textContent=avg; statAttendance.textContent=attendanceRate+'%'; statFees.textContent=formatMoney(paid); statPendingFees.textContent=formatMoney(remain); statPassRate.textContent=passRate+'%';
+  feesCollectedCard.textContent=formatMoney(paid); feesRemainingCard.textContent=formatMoney(remain); feesPaidCount.textContent=list.filter(s=>s.feeStatus==='Paid').length; feesDueCount.textContent=list.filter(s=>s.feeStatus!=='Paid').length;
+  renderCharts();
+}
+function renderCharts(){ if(typeof Chart==='undefined') return;
+  const deptCounts={}, marksBuckets={'90+':0,'60-89':0,'0-59':0}, attendance={'Present':0,'Absent':0}, fees={'Paid':0,'Partial':0,'Unpaid':0};
+  students.forEach(s=>{deptCounts[s.department||'Unknown']=(deptCounts[s.department||'Unknown']||0)+1; if(s.marks>=90) marksBuckets['90+']++; else if(s.marks>=60) marksBuckets['60-89']++; else marksBuckets['0-59']++; attendance[s.attendance] = (attendance[s.attendance]||0)+1; fees[s.feeStatus]=(fees[s.feeStatus]||0)+1;});
+  drawChart('deptChart','bar',Object.keys(deptCounts),Object.values(deptCounts),'Students by Department','dept');
+  drawChart('marksChart','doughnut',Object.keys(marksBuckets),Object.values(marksBuckets),'Marks Performance','marks');
+  drawChart('attendanceChart','pie',Object.keys(attendance),Object.values(attendance),'Attendance Rate','attendance');
+  drawChart('feesChart','bar',Object.keys(fees),Object.values(fees),'Fee Status','fees');
+}
+function drawChart(id,type,labels,data,label,key){
+  const el=document.getElementById(id); if(!el) return; if(charts[key]) charts[key].destroy();
+  charts[key]=new Chart(el,{type,data:{labels,datasets:[{label,data,borderWidth:1,borderRadius:10}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:type==='bar'?{y:{beginAtZero:true,ticks:{precision:0}}}:{}}});
+}
+
+function loginStudent(){
+  const name=(studentLoginName?.value||'').trim().toLowerCase();
+  const roll=(studentLoginRoll?.value||'').trim().toLowerCase();
+  if(!name || !roll){alert('Please enter student name and roll number');return;}
+  const index=students.findIndex(s=>String(s.name).trim().toLowerCase()===name && String(s.roll).trim().toLowerCase()===roll);
+  if(index===-1){alert('Student not found. Check name and roll number.');return;}
+  currentStudentIndex=index;
+  localStorage.setItem(STORAGE_KEYS.studentLogged, String(index));
+  openStudentPortal(index);
+}
+function openStudentPortal(index){
+  const s=students[index];
+  if(!s){alert('Student record not found');return;}
+  authSection.classList.add('hidden');
+  dashboardSection.classList.add('hidden');
+  studentPortalSection.classList.remove('hidden');
+  studentWelcomeText.textContent='Welcome, '+(s.name||'Student')+' 👋';
+  studentMarksCard.textContent=s.marks ?? 0;
+  studentResultCard.textContent=s.result || '-';
+  studentAttendanceCard.textContent=s.attendance || '-';
+  studentFeeCard.textContent=s.feeStatus || '-';
+  const avatar=s.photo?`<div class="profile-avatar"><img src="${s.photo}" alt="${escapeHtml(s.name)}"></div>`:`<div class="profile-avatar">${initialFromName(s.name)}</div>`;
+  studentProfileContent.innerHTML=`
+    <div class="profile-head">${avatar}<div><h2>${escapeHtml(s.name)}</h2><div class="helper">Roll: ${escapeHtml(s.roll)} • ${escapeHtml(s.department)} • ${escapeHtml(s.studentClass)}</div></div></div>
+    <div class="profile-grid">
+      <div class="profile-box"><h4>Marks</h4><div>${escapeHtml(s.marks)}</div></div>
+      <div class="profile-box"><h4>Result</h4><div>${escapeHtml(s.result)}</div></div>
+      <div class="profile-box"><h4>Attendance</h4><div>${escapeHtml(s.attendance)}</div></div>
+      <div class="profile-box"><h4>Fee Status</h4><div>${escapeHtml(s.feeStatus)}</div></div>
+      <div class="profile-box"><h4>Paid Fees</h4><div>${formatMoney(s.paidFees)}</div></div>
+      <div class="profile-box"><h4>Total Fees</h4><div>${formatMoney(s.totalFees)}</div></div>
+      <div class="profile-box"><h4>Phone</h4><div>${escapeHtml(s.phone||'-')}</div></div>
+      <div class="profile-box"><h4>Email</h4><div>${escapeHtml(s.email||'-')}</div></div>
+      <div class="profile-box"><h4>Address</h4><div>${escapeHtml(s.address||'-')}</div></div>
+    </div>
+    <div class="profile-box"><h4>Notes</h4><div>${escapeHtml(s.notes||'No notes')}</div></div>`;
+}
+function logoutStudent(){
+  localStorage.removeItem(STORAGE_KEYS.studentLogged);
+  currentStudentIndex=-1;
+  studentPortalSection.classList.add('hidden');
+  authSection.classList.remove('hidden');
+  showStudentTab();
+}
+function printStudentCard(){ window.print(); }
+(function init(){
+  const theme=localStorage.getItem(STORAGE_KEYS.theme), logged=localStorage.getItem(STORAGE_KEYS.logged), studentLogged=localStorage.getItem(STORAGE_KEYS.studentLogged), user=getLoggedUser();
+  if(theme==='light') document.body.classList.add('light');
+  if(!students.length){students=[buildStudent({name:'Azhagudurai',roll:'101',department:'CSE',studentClass:'III Year',marks:92,attendance:'Present',totalFees:50000,paidFees:50000,phone:'9876543210',email:'azhagu.student@example.com',address:'Salem',notes:'Portfolio demo sample'}),buildStudent({name:'Divya',roll:'102',department:'IT',studentClass:'II Year',marks:81,attendance:'Present',totalFees:45000,paidFees:30000,phone:'9876543201',email:'divya@example.com',address:'Chennai',notes:'Good attendance'}),buildStudent({name:'Karthik',roll:'103',department:'ECE',studentClass:'I Year',marks:38,attendance:'Absent',totalFees:47000,paidFees:0,phone:'9876543202',email:'karthik@example.com',address:'Madurai',notes:'Needs academic support'})]; saveStudents();}
+  refreshFilters(); currentView=[...students]; renderTable(); updateDashboard();
+  if(logged==='true' && user) openDashboard(user);
+  else if(studentLogged!==null && students[Number(studentLogged)]) openStudentPortal(Number(studentLogged));
+  else {showAdminTab(); showLogin();}
+})();
+</script>
+</body>
+</html>

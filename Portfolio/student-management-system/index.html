@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Management System - Import Export</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+body{background:#f4f7fb;padding:30px}
+.container{max-width:1150px;margin:auto;background:#fff;padding:25px;border-radius:18px;box-shadow:0 8px 25px rgba(0,0,0,.08)}
+h1{text-align:center;margin-bottom:20px;color:#1e293b}
+.top{display:grid;grid-template-columns:1.4fr repeat(3,auto);gap:12px;margin-bottom:20px}
+input,button{padding:12px;border:1px solid #cbd5e1;border-radius:10px}
+button{background:#2563eb;color:#fff;border:none;cursor:pointer;font-weight:700}
+button:hover{opacity:.95}
+.form-box{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:18px}
+.search-wrap{display:grid;grid-template-columns:1fr auto;gap:12px;margin-bottom:20px}
+table{width:100%;border-collapse:collapse;overflow:hidden}
+th,td{padding:14px;text-align:center;border-bottom:1px solid #eee}
+th{background:#2563eb;color:#fff}
+.action-btn{padding:7px 12px;border:none;border-radius:8px;color:#fff;cursor:pointer;margin:2px}
+.edit{background:#16a34a}.delete{background:#dc2626}.secondary{background:#0f766e}.warning{background:#ea580c}
+.small{font-size:14px;color:#475569;margin-bottom:14px;line-height:1.6}
+.badges{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px}
+.badge{background:#eff6ff;color:#1d4ed8;padding:8px 12px;border-radius:999px;font-size:14px;font-weight:700}
+@media(max-width:850px){
+  body{padding:15px}
+  .top,.search-wrap{grid-template-columns:1fr}
+  th,td{font-size:13px;padding:10px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Student Management System</h1>
+<div class="small">
+Upload Excel/CSV student data and also download the current student table as CSV.<br>
+Required columns: <strong>Name, Roll, Department, Marks</strong>
+</div>
+
+<div class="top">
+  <input type="file" id="excelFile" accept=".xlsx,.xls,.csv" onchange="importExcel()">
+  <button onclick="downloadSample()">Download Sample CSV</button>
+  <button class="secondary" onclick="exportStudentData()">Download Student Data</button>
+  <button class="warning" onclick="clearAllStudents()">Clear All</button>
+</div>
+
+<div class="form-box">
+  <input id="name" placeholder="Student Name">
+  <input id="roll" placeholder="Roll Number">
+  <input id="department" placeholder="Department">
+  <input id="marks" placeholder="Marks">
+  <button onclick="addStudent()">Add Student</button>
+</div>
+
+<div class="badges">
+  <div class="badge">Total Students: <span id="count">0</span></div>
+</div>
+
+<div class="search-wrap">
+  <input id="search" placeholder="Search by name..." onkeyup="searchStudent()">
+  <button onclick="exportFilteredData()">Download Filtered Data</button>
+</div>
+
+<table>
+<thead><tr><th>Name</th><th>Roll</th><th>Department</th><th>Marks</th><th>Actions</th></tr></thead>
+<tbody id="studentTable"></tbody>
+</table>
+</div>
+
+<script>
+let students = JSON.parse(localStorage.getItem('students_fixed_export')) || [];
+let editIndex = -1;
+let currentView = [...students];
+
+function save(){
+  localStorage.setItem('students_fixed_export', JSON.stringify(students));
+  document.getElementById('count').textContent = students.length;
+}
+
+function renderStudents(data = students){
+  currentView = data;
+  const table = document.getElementById('studentTable');
+  table.innerHTML = '';
+
+  data.forEach((s, index) => {
+    const realIndex = students.findIndex(item =>
+      item.name === s.name &&
+      item.roll === s.roll &&
+      item.department === s.department &&
+      item.marks == s.marks
+    );
+
+    table.innerHTML += `
+      <tr>
+        <td>${s.name || ''}</td>
+        <td>${s.roll || ''}</td>
+        <td>${s.department || ''}</td>
+        <td>${s.marks || ''}</td>
+        <td>
+          <button class="action-btn edit" onclick="editStudent(${realIndex})">Edit</button>
+          <button class="action-btn delete" onclick="deleteStudent(${realIndex})">Delete</button>
+        </td>
+      </tr>`;
+  });
+
+  save();
+}
+
+function addStudent(){
+  const name = document.getElementById('name').value.trim();
+  const roll = document.getElementById('roll').value.trim();
+  const department = document.getElementById('department').value.trim();
+  const marks = document.getElementById('marks').value.trim();
+
+  if(!name || !roll || !department || !marks){
+    alert('Please fill all fields');
+    return;
+  }
+
+  const data = {name, roll, department, marks};
+
+  if(editIndex === -1) students.push(data);
+  else {
+    students[editIndex] = data;
+    editIndex = -1;
+  }
+
+  document.getElementById('name').value = '';
+  document.getElementById('roll').value = '';
+  document.getElementById('department').value = '';
+  document.getElementById('marks').value = '';
+
+  renderStudents(students);
+}
+
+function editStudent(i){
+  if(i < 0) return;
+  document.getElementById('name').value = students[i].name;
+  document.getElementById('roll').value = students[i].roll;
+  document.getElementById('department').value = students[i].department;
+  document.getElementById('marks').value = students[i].marks;
+  editIndex = i;
+}
+
+function deleteStudent(i){
+  if(i < 0) return;
+  students.splice(i,1);
+  renderStudents(students);
+}
+
+function searchStudent(){
+  const v = document.getElementById('search').value.toLowerCase();
+  const filtered = students.filter(s =>
+    (s.name || '').toLowerCase().includes(v) ||
+    (s.roll || '').toLowerCase().includes(v) ||
+    (s.department || '').toLowerCase().includes(v) ||
+    String(s.marks || '').toLowerCase().includes(v)
+  );
+  renderStudents(filtered);
+}
+
+function normalizeRow(row){
+  return {
+    name: row.Name || row.name || row["Student Name"] || "",
+    roll: row.Roll || row.roll || row["Roll No"] || row["Roll Number"] || "",
+    department: row.Department || row.department || row.Dept || "",
+    marks: row.Marks || row.marks || row.Score || ""
+  };
+}
+
+function importExcel(){
+  const file = document.getElementById('excelFile').files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, {type:'array'});
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet);
+
+    const imported = rows.map(normalizeRow).filter(r => r.name && r.roll);
+    if(!imported.length){
+      alert('Columns not matched. Use Name, Roll, Department, Marks');
+      return;
+    }
+
+    students = [...students, ...imported];
+    document.getElementById('excelFile').value = '';
+    renderStudents(students);
+    alert(imported.length + ' students imported successfully');
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function makeCsv(rows){
+  const header = ['Name','Roll','Department','Marks'];
+  const dataRows = rows.map(s => [
+    escapeCell(s.name || ''),
+    escapeCell(s.roll || ''),
+    escapeCell(s.department || ''),
+    escapeCell(s.marks || '')
+  ].join(','));
+
+  return [header.join(','), ...dataRows].join('\n');
+}
+
+function escapeCell(value){
+  const str = String(value).replaceAll('"', '""');
+  return `"${str}"`;
+}
+
+function downloadBlob(content, filename){
+  const blob = new Blob([content], {type:'text/csv;charset=utf-8;'});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(link.href), 500);
+}
+
+function downloadSample(){
+  const sample = [
+    {name:'Azhagudurai', roll:'101', department:'CSE', marks:'92'},
+    {name:'Kavin', roll:'102', department:'IT', marks:'88'},
+    {name:'Priya', roll:'103', department:'ECE', marks:'90'}
+  ];
+  downloadBlob(makeCsv(sample), 'student-sample.csv');
+}
+
+function exportStudentData(){
+  if(!students.length){
+    alert('No student data available to download');
+    return;
+  }
+  downloadBlob(makeCsv(students), 'student-data.csv');
+}
+
+function exportFilteredData(){
+  if(!currentView.length){
+    alert('No filtered student data to download');
+    return;
+  }
+  downloadBlob(makeCsv(currentView), 'filtered-student-data.csv');
+}
+
+function clearAllStudents(){
+  if(!students.length){
+    alert('No student data to clear');
+    return;
+  }
+  if(confirm('Clear all student data?')){
+    students = [];
+    editIndex = -1;
+    renderStudents(students);
+  }
+}
+
+renderStudents(students);
+</script>
+</body>
+</html>
